@@ -1,0 +1,64 @@
+version: '3.8'
+services:
+
+  eureka-server:
+    image: application/eureka-server
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    environment:
+      SERVER_PORT: 8080
+    ports:
+      - 8671:8080
+
+  config-server:
+    image: application/config-server
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    environment:
+      SERVER_PORT: 8080
+      EUREKA_URL: http://eureka-server:8080
+    ports:
+      - 8888:8080
+
+  user-demo-microservice:
+    image: application/user-demo-microservice
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8080/actuator/health" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    environment:
+      SERVER_PORT: 8080
+      EUREKA_URL: http://eureka-server:8080
+      CONFIG_URL: http://service-config:8080
+
+  api-gateway:
+    image: application/api-gateway
+    depends_on:
+      user-demo-microservice:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8080/actuator/health" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    environment:
+      SERVER_PORT: 8080
+      EUREKA_URL: http://eureka-server:8080
+      CONFIG_URL: http://service-config:8080
+    ports:
+      - 8765:8080
